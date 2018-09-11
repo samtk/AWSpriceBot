@@ -3,10 +3,14 @@ import random
 import logging
 import os
 
+
 os.environ['NLTK_DATA'] = os.getcwd() + '/nltk_data'
 
 from textblob import TextBlob
 from config import FILTER_WORDS
+
+import nltk
+nltk.download('punkt')
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -198,6 +202,8 @@ def respond(sentence):
     """Parse the user's inbound sentence and find candidate terms that make up a best-fit response"""
     cleaned = preprocess_text(sentence)
     parsed = TextBlob(cleaned)
+    print(parsed.tags)
+
 
     # Loop through all the sentences, if more than one. This will help extract the most relevant
     # response text even across multiple sentences (for example if there was no obvious direct noun
