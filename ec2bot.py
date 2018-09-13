@@ -220,22 +220,33 @@ def get_adjectives(parsed):
         adjectives += sentence
     return adjectives
 
-def ask_for_price(sentence):
-    pattern = "price(\s)?([><=]|greater|less)(\s)?(than)?(\s)?(\d)+(\.(\d)+)?"
-    match = re.search(pattern,sentence)
-    if match is not None:
-        return match.group(0)
-    return(match)
-
-def get_best_lines(words):
+def get_best_lines(sentence):
+    """
+    Takes a list of words and searches a csv file for lines that are similar
+    Returns the line/s from csv that have most words in common
+    Also returns the number of words in common found
+    """
+    cleaned = preprocess_text(sentence)
+    parsed = TextBlob(cleaned)
+    words = parsed.split(" ")
+    words = list(set(words))#remove dupe words
+    
     bestlines = []
     blcount = 0
+    
+    priceflag = False
+    pricequestion = has_asked_for_price(sentence)
+    if pricequestion is not None:
+        relationalop = get_relationalop_in_price_question(pricequestion)
+        #print("the rel op " + relationalop + "\n")
+        price =  get_number_in_price_question(pricequestion)
+        priceflag = True
+    
     try:
         fp = open('newtrim.csv', 'r')
         line = fp.readline()
         count = 0
         while line:
-            #sentence = TextBlob(line)
             split = " ".join(list(set(line.split(","))))
             for word in words:
                 if(re.search(word.lower(), split.lower())):
@@ -249,9 +260,18 @@ def get_best_lines(words):
             count = 0
     finally:
         fp.close()
+    bl2 = []
+    if(priceflag):
+        for line in bestlines:
+            if (compare_price(get_price_from_sentence(line),price,relationalop)):
+                bl2.append(line)
+        return bl2,blcount
     return bestlines,blcount
 
 def is_number(s):
+    """
+    is the string value a digit
+    """
     try:
         float(s)
         return True
@@ -267,26 +287,73 @@ def is_number(s):
  
     return False
 
-def read_price(match):
+def has_asked_for_price(sentence):
+    """
+    Takes user input as param 
+    Check whether user asked for price in input string, if so return that part of string
+    """
+    pattern = "price(\s)*([><=]|=[><=]|greater(\s)*(than)?|less(\s)*(than)?)(\s)*\$?(\d)+(\.(\d)+)?"
+    match = re.search(pattern,sentence)
+    if match is not None:
+        return match.group(0)
+    return (match)
+
+def get_number_in_price_question(pricequestion):
+    """
+    Reads question and returns the mentioned price
+    """
     number = []
-    for i in range(len(match)-1,0,-1):
-        if(is_number(match[i]) or match[i] == "."):
-            number.insert(0,match[i])
+    for i in range(len(pricequestion)-1,0,-1):
+        if(is_number(pricequestion[i]) or pricequestion[i] == "."):
+            number.insert(0,pricequestion[i])
         else:
             break
     return float("".join(number))
-    
-def respond(sentence):
-    cleaned = preprocess_text(sentence)
-    parsed = TextBlob(cleaned)
-    words = parsed.split(" ")
-    words = list(set(words))#remove dupe words
 
-    match = ask_for_price(sentence)
+def get_relationalop_in_price_question(pricequestion):
+    """
+    Reads question and returns relational operator as string
+    """
+    operator = ""
+    pattern = "(greater(\s)*(than)?)|(less(\s)*(than)?)"
+    match = re.search(pattern, pricequestion.lower())
     if match is not None:
-        print(read_price(match))
+        return match.group(0)
+    for i in range(0,len(pricequestion)):
+        if(pricequestion[i] == "<" or pricequestion[i] == ">" or pricequestion[i] == "="):
+            operator += pricequestion[i]
+        
+    return operator
 
-    bestlines,blcount = get_best_lines(words)
+def get_price_from_sentence(sentence):
+    """
+    Reads string and looks for price(number with dollar sign)
+    returns price
+    """
+    pattern = "\$(\d)+(\.(\d)+)?"
+    match = re.search(pattern,sentence)
+    if match is not None:
+        return float(match.group(0)[1:])
+    return (match)
+
+def compare_price(price1,price2,operator):
+    operator = operator.strip()
+    if(price1 is not None and price2 is not None):
+        if (operator == "<" or operator == "less" or operator == "less than"):
+            return price1 < price2 
+        if (operator == ">" or operator == "greater" or operator == "greater than"):
+            #print("this should print")
+            return price1 > price2 
+        if (operator == ">="):
+            return price1 >= price2 
+        if (operator == "<="):
+            return price1 <= price2 
+    return False  
+
+def respond(sentence):
+    bestlines,blcount = get_best_lines(sentence)
+    
+    
     
     i = 0
     for line in bestlines:
