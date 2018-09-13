@@ -66,15 +66,6 @@ def starts_with_vowel(word):
     return True if word[0] in 'aeiou' else False
 
 
-
-"""
-def broback(sentence):
-    #Main program loop: select a response for the input sentence and return it
-    logger.info("EC2Res: respond to %s", sentence)
-    resp = respond(sentence)
-    return resp
-"""
-
 # start:example-pronoun.py
 def find_pronoun(sent):
     """Given a sentence, find a preferred pronoun to respond with. Returns None if no candidate
@@ -91,14 +82,16 @@ def find_pronoun(sent):
     return pronoun
 # end
 
-def find_verb(sent):
+def find_verbs(sent):
     """Pick a candidate verb for the sentence."""
     verb = None
     pos = None
+    verbs=[]
     for word, part_of_speech in sent.pos_tags:
         if part_of_speech.startswith('VB'):  # This is a verb
             verb = word
             pos = part_of_speech
+            verbs.append({"verb":word,"pos":pos})
             break
     return verb, pos
 
@@ -116,13 +109,14 @@ def find_nouns(sent):
         logger.info("Found nouns: %s", nouns)
     return nouns
 
-def find_adjective(sent):
+def find_adjectives(sent):
     """Given a sentence, find the best candidate adjective."""
     adj = None
+    adjs = []
     for w, p in sent.pos_tags:
         if p == 'JJ':  # This is an adjective
             adj = w
-            break
+            adjs.append(w)
     return adj
 
 
@@ -212,42 +206,97 @@ def get_nouns(parsed):
         nouns += sentence
     return nouns
 
+def get_verbs(parsed):
+    verbs = []
+    for sent in parsed.sentences:
+        sentence = find_verbs(sent)
+        verbs += sentence
+    return verbs
+    
+def get_adjectives(parsed):
+    adjectives = []
+    for sent in parsed.sentences:
+        sentence = find_adjectives(sent)
+        adjectives += sentence
+    return adjectives
+
+def ask_for_price(sentence):
+    pattern = "price(\s)?([><=]|greater|less)(\s)?(than)?(\s)?(\d)+(\.(\d)+)?"
+    match = re.search(pattern,sentence)
+    if match is not None:
+        return match.group(0)
+    return(match)
+
+def get_best_lines(words):
+    bestlines = []
+    blcount = 0
+    try:
+        fp = open('newtrim.csv', 'r')
+        line = fp.readline()
+        count = 0
+        while line:
+            #sentence = TextBlob(line)
+            split = " ".join(list(set(line.split(","))))
+            for word in words:
+                if(re.search(word.lower(), split.lower())):
+                    count += 1
+            if(count > blcount):
+                blcount = count
+                bestlines = [line]
+            elif(count == blcount):
+                bestlines.append(line)
+            line = fp.readline()
+            count = 0
+    finally:
+        fp.close()
+    return bestlines,blcount
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+ 
+    try:
+        import unicodedata
+        unicodedata.numeric(s)
+        return True
+    except (TypeError, ValueError):
+        pass
+ 
+    return False
+
+def read_price(match):
+    number = []
+    for i in range(len(match)-1,0,-1):
+        if(is_number(match[i]) or match[i] == "."):
+            number.insert(0,match[i])
+        else:
+            break
+    return float("".join(number))
+    
 def respond(sentence):
     cleaned = preprocess_text(sentence)
     parsed = TextBlob(cleaned)
-    #print(parsed.tags)
-    #print(parsed.noun_phrases)
-    nouns = get_nouns(parsed)
+    words = parsed.split(" ")
+    words = list(set(words))#remove dupe words
+
+    match = ask_for_price(sentence)
+    if match is not None:
+        print(read_price(match))
+
+    bestlines,blcount = get_best_lines(words)
     
-    thelist = []
-    searchedlist = []
-    #a = ["1","2fdsf1","3","4"]
-    #print(search_list(a,"F"))
+    i = 0
+    for line in bestlines:
+        print(line + "Number of keywords in common " + str(blcount) + "\n")
+        i += 1
+        if i > 3:
+            print("Only showing top 5 results.")
+            break
+     
     
-    #notlist = 0
-    #yeslist = 0
-    
-    for noun in nouns:
-        #print("\n lets search thgis noun " + noun)
-        if(not thelist):
-            thelist = search_csv("trimmed.csv",noun)
-            #notlist+=1
-        if(thelist):
-            #yeslist+=1
-            #print("\n count this \n")
-            #print("the noun is " + noun)
-            searchedlist = search_list(thelist, noun)
-            #print(searchedlist)
-            if(searchedlist):
-                thelist = searchedlist
-    for result in searchedlist:
-        print("\n" + result)
-        
-    print(nouns)
-    #print(notlist)
-    #print(yeslist)
-    
-# start:example-respond.py
 """
 def respond(sentence):
     #Parse the user's inbound sentence and find candidate terms that make up a best-fit response
@@ -343,5 +392,5 @@ if __name__ == '__main__':
         saying = sys.argv[1]
     else:
         saying = "How are you, brobot?"
-    print(respond(saying))
+    respond(saying)
      
