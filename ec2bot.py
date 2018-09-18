@@ -29,7 +29,6 @@ def get_best_lines(sentence):
     Returns the line/s from csv that have most words in common
     Also returns the number of words in common found
     """
-    
     bestlines = []
     blcount = 0
     
@@ -38,8 +37,8 @@ def get_best_lines(sentence):
     userinput = list(set(userinput))#remove dupe words
     filelines = []
     
-    priceflag,priceop,pricenum = filter_on_category("price",sentence)
-    cpuflag,cpuop,cpunum = filter_on_category("cpu", sentence)
+    priceflag,priceop,pricenum = get_filter_variables("price",sentence)
+    cpuflag,cpuop,cpunum = get_filter_variables("cpu", sentence)
     
     try:
         fp = open('newtrim.csv', 'r')
@@ -69,63 +68,14 @@ def get_best_lines(sentence):
     finally:
         fp.close()
     
-    
-   
-    
     return bestlines,blcount
     
+    
+
+def get_filter_variables(category, sentence):
     """
-    bestlines = []
-    blcount = 0
-    
-    parsed = TextBlob(sentence)
-    words = parsed.split(" ")
-    words = list(set(words))#remove dupe words
-    
-    priceflag, relationalop,price,words = set_flag("price",sentence, words)
-    cpuflag, cpuop ,numcpu,words = set_flag("cpu",sentence, words)
-    
-    try:
-        fp = open('newtrim.csv', 'r')
-        line = fp.readline()
-        count = 0
-        while line:
-            split = " ".join(list(set(line.split(","))))
-            for word in words:
-                if(re.search(word.lower(), split.lower())):
-                    count += 1
-            if(count > blcount):
-                blcount = count
-                bestlines = [line]
-            elif(count == blcount):
-                bestlines.append(line)
-            line = fp.readline()
-            count = 0
-    finally:
-        fp.close()
-  
-    flagflag = False  
-    bl2 = []
-    if(priceflag):
-        for line in bestlines:
-            if (compare_string_op(float(get_price_from_sentence(line)),float(price),relationalop)):
-                bl2.append(line)
-        return bl2,blcount
-    if(cpuflag):
-        for line in bestlines:
-            if (compare_string_op(float(get_cpu_from_sentence(line)),float(numcpu, cpuop))):
-                bl2.append(line)
-        return bl2,blcount
-    return bestlines,blcount
-        """
-#def price():
+    returns variables to help filter 
     """
-def filter_line(flag,op, num, line):
-    if(flag):
-        return not compare_string_op(float(get_price_from_sentence(line)),float(price),relationalop)
-    return False
-        """
-def filter_on_category(category, sentence):
     question = has_asked_for_subject(category,sentence)
     flag = False
     relop = None
@@ -134,14 +84,6 @@ def filter_on_category(category, sentence):
         relop = get_relationalop_in_question(question)
         num = get_number_in_question(question)
         flag = True
-        """
-        try:
-            words.remove(relop)
-            words.remove(num)
-            words.remove(category)
-        except:
-            print("probably tried to delete val from words twice")
-        """    
     return flag, relop, num
     
 def is_number(s):
