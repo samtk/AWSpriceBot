@@ -2,7 +2,7 @@ from __future__ import print_function, unicode_literals
 import random
 import logging
 import os
-
+import pandas as pd
 
 os.environ['NLTK_DATA'] = os.getcwd() + '/nltk_data'
 
@@ -33,30 +33,46 @@ def get_best_lines(sentence):
     bestlines = []
     blcount = 0
     
-    priceflag = False
-    pricequestion = has_asked_for_subject("price",sentence)
-    if pricequestion is not None:
-        relationalop = get_relationalop_in_question(pricequestion)
-        price =  get_number_in_question(pricequestion)
-        priceflag = True
+    parsed = TextBlob(sentence)
+    userinput = parsed.split(" ")
+    userinput = list(set(userinput))#remove dupe words
+    filelines = []
     
-    cpuflag = False
-    cpuquestion = has_asked_for_subject("cpu",sentence)
-    if cpuquestion is not None:
-        cpuop = get_relationalop_in_question(cpuquestion)
-        numcpu = get_number_in_question(cpuquestion)
-        cpuflag = True
+    try:
+        fp = open('newtrim.csv', 'r')
+        line = fp.readline()
+        while line:
+            filelines.append(line)
+    finally:
+        fp.close()
+    
+    filelines,userinput = filter_on_category("price",sentence, userinput, filelines)
+    filelines,userinput = filter_on_category("cpu",sentence, userinput, filelines)
+        
+    for line in filelines:
+            filteredline = " ".join(list(set(line.split(",")))) #remove dupe words in line
+            for word in userinput:
+                if(re.search(word.lower(), filteredline.lower())):
+                    count += 1
+            if(count > blcount):
+                blcount = count
+                bestlines = [line]
+            elif(count == blcount):
+                bestlines.append(line)
+            line = fp.readline()
+            count = 0
+  
+    
+    """
+    bestlines = []
+    blcount = 0
     
     parsed = TextBlob(sentence)
     words = parsed.split(" ")
     words = list(set(words))#remove dupe words
-    if(priceflag):
-        for w in pricequestion.split():
-            words.remove(w)
     
-    if(cpuflag):
-        for w in cpuquestion.split():
-            words.remove(w)
+    priceflag, relationalop,price,words = set_flag("price",sentence, words)
+    cpuflag, cpuop ,numcpu,words = set_flag("cpu",sentence, words)
     
     try:
         fp = open('newtrim.csv', 'r')
@@ -76,19 +92,47 @@ def get_best_lines(sentence):
             count = 0
     finally:
         fp.close()
+  
+    flagflag = False  
     bl2 = []
     if(priceflag):
         for line in bestlines:
-            if (compare_price(get_price_from_sentence(line),price,relationalop)):
+            if (compare_string_op(float(get_price_from_sentence(line)),float(price),relationalop)):
                 bl2.append(line)
         return bl2,blcount
     if(cpuflag):
         for line in bestlines:
-            if (compare_price(get_price_from_sentence(line),numcpu, cpuop)):
+            if (compare_string_op(float(get_cpu_from_sentence(line)),float(numcpu, cpuop))):
                 bl2.append(line)
         return bl2,blcount
     return bestlines,blcount
-
+        """
+#def price():
+    
+def filter_lines(flag,op, num, lines):
+    if(priceflag):
+            for line in lines:
+                if (not compare_string_op(float(get_price_from_sentence(line)),float(price),relationalop)):
+                    lines.remove(line)
+    return lines
+                    
+def filter_on_category(category, sentence, words,lines):
+    question = has_asked_for_subject(category,sentence)
+    if question is not None:
+        relop = get_relationalop_in_question(question)
+        num = get_number_in_question(question)
+        flag = True
+        try:
+            words.remove(relop)
+            words.remove(num)
+            words.remove(category)
+        except:
+            print("probably tried to delete val from words twice")
+        for line in lines:
+                if (not compare_string_op(float(get_price_from_sentence(line)),float(num),relop)):
+                    lines.remove(line)
+    return lines, words
+    
 def is_number(s):
     """
     is the string value a digit
@@ -130,7 +174,7 @@ def get_number_in_question(question):
             number.insert(0,question[i])
         else:
             break
-    return float("".join(number))
+    return "".join(number)
 
 def get_relationalop_in_question(question):
     """
@@ -148,20 +192,14 @@ def get_relationalop_in_question(question):
     return operator
 
 def get_price_from_sentence(sentence):
-    """
-    Reads string and looks for price(number with dollar sign)
-    returns price
-    """
-    pattern = "\$(\d)+(\.(\d)+)?"
-    match = re.search(pattern,sentence)
-    if match is not None:
-        return float(match.group(0)[1:])
-    return (match)
+    s = sentence.split(",")
+    return s[6]
     
 def get_cpu_from_sentence(sentence):
-    pass
+    s = sentence.split(",")
+    return s[18]
 
-def compare_price(price1,price2,operator):
+def compare_string_op(price1,price2,operator):
     operator = operator.strip()
     if(price1 is not None and price2 is not None):
         if (operator == "<" or operator == "less" or operator == "less than"):
