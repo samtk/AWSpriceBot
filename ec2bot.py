@@ -38,18 +38,23 @@ def get_best_lines(sentence):
     userinput = list(set(userinput))#remove dupe words
     filelines = []
     
+    priceflag,priceop,pricenum = filter_on_category("price",sentence)
+    cpuflag,cpuop,cpunum = filter_on_category("cpu", sentence)
+    
     try:
         fp = open('newtrim.csv', 'r')
         line = fp.readline()
+        count = 0
         while line:
-            filelines.append(line)
-    finally:
-        fp.close()
-    
-    filelines,userinput = filter_on_category("price",sentence, userinput, filelines)
-    filelines,userinput = filter_on_category("cpu",sentence, userinput, filelines)
-        
-    for line in filelines:
+            if(priceflag):
+                if(not compare_string_op(float(get_price_from_sentence(line)),float(pricenum), priceop)):
+                    line = fp.readline()
+                    continue
+            if(cpuflag):
+                if(not compare_string_op(float(get_cpu_from_sentence(line)),float(cpunum), cpuop)):
+                    line = fp.readline()
+                    continue
+            
             filteredline = " ".join(list(set(line.split(",")))) #remove dupe words in line
             for word in userinput:
                 if(re.search(word.lower(), filteredline.lower())):
@@ -61,7 +66,13 @@ def get_best_lines(sentence):
                 bestlines.append(line)
             line = fp.readline()
             count = 0
-  
+    finally:
+        fp.close()
+    
+    
+   
+    
+    return bestlines,blcount
     
     """
     bestlines = []
@@ -108,30 +119,30 @@ def get_best_lines(sentence):
     return bestlines,blcount
         """
 #def price():
-    
-def filter_lines(flag,op, num, lines):
-    if(priceflag):
-            for line in lines:
-                if (not compare_string_op(float(get_price_from_sentence(line)),float(price),relationalop)):
-                    lines.remove(line)
-    return lines
-                    
-def filter_on_category(category, sentence, words,lines):
+    """
+def filter_line(flag,op, num, line):
+    if(flag):
+        return not compare_string_op(float(get_price_from_sentence(line)),float(price),relationalop)
+    return False
+        """
+def filter_on_category(category, sentence):
     question = has_asked_for_subject(category,sentence)
+    flag = False
+    relop = None
+    num = None
     if question is not None:
         relop = get_relationalop_in_question(question)
         num = get_number_in_question(question)
         flag = True
+        """
         try:
             words.remove(relop)
             words.remove(num)
             words.remove(category)
         except:
             print("probably tried to delete val from words twice")
-        for line in lines:
-                if (not compare_string_op(float(get_price_from_sentence(line)),float(num),relop)):
-                    lines.remove(line)
-    return lines, words
+        """    
+    return flag, relop, num
     
 def is_number(s):
     """
